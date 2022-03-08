@@ -213,9 +213,6 @@ jobs:
       id: organizer
       run: |
         mkdir -p ./artifact/firmware
-        mkdir -p ./artifact/pvekvm
-        mkdir -p ./artifact/hyperv
-        mkdir -p ./artifact/vmware
         mkdir -p ./artifact/package
         mkdir -p ./artifact/buildinfo
         cp -rf openwrt/.config ./artifact/buildinfo/${{matrix.target}}.config
@@ -223,9 +220,6 @@ jobs:
         cp -rf $(find openwrt/bin/packages/ -type f -name "*.ipk") ./artifact/package/
         cp -rf $(find openwrt/bin/targets/ -type f -name "*.buildinfo" -o -name "*.manifest") ./artifact/buildinfo/
         cp -rf $(find openwrt/bin/targets/ -type f -name "*combined*img*") ./artifact/firmware/
-        cp -rf $(find openwrt/bin/targets/ -type f -name "*combined*qcow2*") ./artifact/pvekvm/ || true
-        cp -rf $(find openwrt/bin/targets/ -type f -name "*combined*vhdx*") ./artifact/hyperv/ || true
-        cp -rf $(find openwrt/bin/targets/ -type f -name "*combined*vmdk*") ./artifact/vmware/ || true
         echo "::set-output name=status::success"
         echo "Compile completion time..."
         START_SECONDS=${{ env.START_SECONDS }}
@@ -242,27 +236,6 @@ jobs:
         name: OpenWrt_firmware_${{matrix.target}}_${{ env.FILE_TIME }}
         path: ./artifact/firmware/
 
-    - name: Upload the PVE/KVM image file
-      if: steps.organizer.outputs.status == 'success' && env.UPLOAD_QCOW2 == 'true'
-      uses: actions/upload-artifact@v2
-      with:
-        name: OpenWrt_pvekvm_${{matrix.target}}_${{ env.FILE_TIME }}
-        path: ./artifact/pvekvm/
-
-    - name: Upload the Hyper-V image file
-      if: steps.organizer.outputs.status == 'success' && env.UPLOAD_VHDX == 'true'
-      uses: actions/upload-artifact@v2
-      with:
-        name: OpenWrt_hyperv_${{matrix.target}}_${{ env.FILE_TIME }}
-        path: ./artifact/hyperv/
-
-    - name: Upload the VMware image file
-      if: steps.organizer.outputs.status == 'success' && env.UPLOAD_VMDK == 'true'
-      uses: actions/upload-artifact@v2
-      with:
-        name: OpenWrt_vmware_${{matrix.target}}_${{ env.FILE_TIME }}
-        path: ./artifact/vmware/
-
     - name: Upload the plugin package file
       if: steps.organizer.outputs.status == 'success' && env.UPLOAD_IPK == 'true'
       uses: actions/upload-artifact@v2
@@ -276,15 +249,6 @@ jobs:
       with:
         name: OpenWrt_buildinfo_${{matrix.target}}_${{ env.FILE_TIME }}
         path: ./artifact/buildinfo/
-
-    - name: Upload the firmware to WeTransfer
-      if: steps.organizer.outputs.status == 'success' && env.UPLOAD_WETRANSFER == 'true'
-      run: |
-        curl -fsSL git.io/file-transfer | sh
-        ./transfer wet -s -p 16 --no-progress ./artifact/firmware/ 2>&1 | tee wetransfer.log
-        echo "WETRANSFER_URL=$(cat wetransfer.log | grep https | cut -f3 -d" ")" >> $GITHUB_ENV
-        sed -i "s/Download Link/WeTransfer/g" wetransfer.log
-        echo "::warning file=WeTransfer::$(cat wetransfer.log | grep https)"
 
     - name: Automatically publish firmware to Releases
       uses: ncipollo/release-action@v1
